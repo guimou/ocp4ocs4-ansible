@@ -1,0 +1,47 @@
+---
+- hosts: localhost
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  gather_facts: no
+
+  tasks:
+    - python_requirements_facts:
+        dependencies:
+          - openshift
+          - requests
+
+    - name: validate machine sets
+      block:
+      - debug:
+          msg: Checking your current machinesets
+      - name: get machinesets list    
+        k8s_facts:
+          api_version: machine.openshift.io/v1beta1
+          kind: MachineSet
+          namespace: openshift-machine-api
+        register: r_get_machinesets
+      - set_fact:
+          machinesets: "{{ r_get_machinesets | json_query('resources[*].spec.selector.matchLabels.\"machine.openshift.io/cluster-api-machineset\"') | unique | count }}"
+      - debug: 
+          msg:
+            - You currently have {{ machinesets|int }} machinesets
+      - fail:
+          msg: You don't have the right number of machinesets (6)
+        when: (machinesets|int != 6)
+
+    - name: add machine sets
+      block:
+      - name: get cluster id
+        set_fact:
+          cluster_id: "{{ r_get_machinesets | json_query('resources[0].metadata.labels.\"machine.openshift.io/cluster-api-cluster\"') }}"
+      - name: create machinesets
+        uri:
+          url: https://raw.githubusercontent.com/red-hat-storage/ocs-training/master/misc/workerocs-machines.yaml
+          return_content: yes
+        register: machinesets_yml
+      - name: add machinesets
+        openshift_raw:
+          api: v1
+          state: present
+          definition: "{{ machinesets_yml.content | regex_replace('cluster-28cf-t22gs',cluster_id) }}"
+
