@@ -12,15 +12,14 @@
 
     - name: validate machine sets
       block:
-      - debug:
-          msg: Checking your current machinesets
-      - name: get machinesets list    
+      - name: Checking current machinesets  
         k8s_facts:
           api_version: machine.openshift.io/v1beta1
           kind: MachineSet
           namespace: openshift-machine-api
         register: r_get_machinesets
-      - set_fact:
+      - name: Parsing data
+        set_fact:
           machinesets: "{{ r_get_machinesets | json_query('resources[*].spec.selector.matchLabels.\"machine.openshift.io/cluster-api-machineset\"') | unique | count }}"
       - debug: 
           msg:
@@ -31,17 +30,32 @@
 
     - name: add machine sets
       block:
-      - name: get cluster id
+      - name: Getting cluster id
         set_fact:
           cluster_id: "{{ r_get_machinesets | json_query('resources[0].metadata.labels.\"machine.openshift.io/cluster-api-cluster\"') }}"
-      - name: create machinesets
+      - name: Getting new machinesets
         uri:
           url: https://raw.githubusercontent.com/red-hat-storage/ocs-training/master/misc/workerocs-machines.yaml
           return_content: yes
         register: machinesets_yml
-      - name: add machinesets
+      - name: Adding machinesets
         openshift_raw:
           api: v1
           state: present
           definition: "{{ machinesets_yml.content | regex_replace('cluster-28cf-t22gs',cluster_id) }}"
+
+    - name: validate machine sets
+      block:
+      - name: Validating new machinesets    
+        k8s_facts:
+          api_version: machine.openshift.io/v1beta1
+          kind: MachineSet
+          namespace: openshift-machine-api
+        register: r_get_machinesets
+        until: r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==`workerocs`].status.readyReplicas') | count | int == 3
+        retries: 30
+        delay: 15
+      - debug: 
+          msg:
+            - "You currently have {{ r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==`workerocs`].status.readyReplicas') | count }} ready OCS worker machinesets"
 

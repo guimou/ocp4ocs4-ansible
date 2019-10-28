@@ -12,8 +12,6 @@
 
     - name: validate machine sets
       block:
-      - debug:
-          msg: Checking your current machinesets
       - name: get machinesets list    
         k8s_facts:
           api_version: machine.openshift.io/v1beta1
