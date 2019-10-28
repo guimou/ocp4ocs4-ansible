@@ -44,7 +44,7 @@
           state: present
           definition: "{{ machinesets_yml.content | regex_replace('cluster-28cf-t22gs',cluster_id) }}"
 
-    - name: validate machine sets
+    - name: validate machinesets
       block:
       - name: Validating new machinesets    
         k8s_facts:
@@ -59,3 +59,17 @@
           msg:
             - "You currently have {{ r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==`workerocs`].status.readyReplicas') | count }} ready OCS worker machinesets"
 
+    - name: validate OCP workers nodes
+      block:
+      - name: Validating new OCP workers nodes
+        k8s_facts:
+          api_version: v1
+          kind: Node
+          label_selectors: node-role.kubernetes.io/worker
+        register: worker_nodes
+        until: worker_nodes | json_query('resources[*].metadata.name') | unique | count == 5
+        retries: 30
+        delay: 15
+      - debug: 
+          msg:
+            - "You currently have {{ worker_nodes | json_query('resources[*].metadata.name') | unique | count }} OCP worker nodes"
