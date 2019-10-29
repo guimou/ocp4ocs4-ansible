@@ -5,11 +5,6 @@
   gather_facts: no
 
   tasks:
-    - python_requirements_facts:
-        dependencies:
-          - openshift
-          - requests
-
     - name: validate machine sets
       block:
       - name: Checking current machinesets  
@@ -33,12 +28,12 @@
       - name: Getting cluster id
         set_fact:
           cluster_id: "{{ r_get_machinesets | json_query('resources[0].metadata.labels.\"machine.openshift.io/cluster-api-cluster\"') }}"
-      - name: Getting new machinesets
+      - name: Getting new machinesets definitions
         uri:
           url: https://raw.githubusercontent.com/red-hat-storage/ocs-training/master/misc/workerocs-machines.yaml
           return_content: yes
         register: machinesets_yml
-      - name: Adding machinesets
+      - name: Adding new machinesets
         openshift_raw:
           api: v1
           state: present
@@ -46,28 +41,28 @@
 
     - name: validate machinesets
       block:
-      - name: Validating new machinesets    
+      - name: Waiting for new machinesets readiness
         k8s_facts:
           api_version: machine.openshift.io/v1beta1
           kind: MachineSet
           namespace: openshift-machine-api
         register: r_get_machinesets
-        until: r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==`workerocs`].status.readyReplicas') | count | int == 3
+        until: r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==\'workerocs\'].status.readyReplicas') | count | int == 3
         retries: 30
         delay: 15
       - debug: 
           msg:
-            - "You currently have {{ r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==`workerocs`].status.readyReplicas') | count }} ready OCS worker machinesets"
+            - "You currently have {{ r_get_machinesets | json_query('resources[?spec.template.metadata.labels.\"machine.openshift.io/cluster-api-machine-role\"==\"workerocs\"].status.readyReplicas') | count }} ready OCS worker machinesets"
 
-    - name: validate OCP workers nodes
+    - name: validate OCP worker nodes
       block:
-      - name: Validating new OCP workers nodes
+      - name: Validating new OCP worker nodes readiness
         k8s_facts:
           api_version: v1
           kind: Node
           label_selectors: node-role.kubernetes.io/worker
         register: worker_nodes
-        until: worker_nodes | json_query('resources[*].metadata.name') | unique | count == 5
+        until: worker_nodes | json_query('resources[*].metadata.name') | unique | count >= 5
         retries: 30
         delay: 15
       - debug: 

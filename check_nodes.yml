@@ -12,27 +12,21 @@
 
     - name: validate that the OCP environment has 3 master and 3 worker nodes
       block: 
-      - name: get nodes list    
+      - name: Getting nodes list    
         k8s_facts:
           kind: Node
         register: Nodes
-      - set_fact:
+      - name: Finding masters and workers
+        set_fact:
           workers: "{{ Nodes | json_query('resources[*].metadata.labels.\"node-role.kubernetes.io/worker\"') | count }}"
           masters: "{{ Nodes | json_query('resources[*].metadata.labels.\"node-role.kubernetes.io/master\"') | count }}"
       - debug: 
           msg:
+            - "OK"
             - "Workers: {{ workers }}"
             - "Masters: {{ masters }}"
-      - fail:
+      - name: Fail on problem
+        fail:
           msg: You don't have enough masters or workers
         when: (workers|int < 2 or masters|int < 3)
 
-
-#    - name: Get a list of all projects
-#      k8s_facts:
-#        api_version: v1
-#        kind: Namespace
-#      register: Project_list
-#
-#    - debug:
-#        msg: "{{ Project_list | json_query('resources[*].metadata.name') }}"

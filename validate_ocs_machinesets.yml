@@ -33,7 +33,7 @@
           kind: Node
           label_selectors: node-role.kubernetes.io/worker
         register: worker_nodes
-        until: worker_nodes | json_query('resources[*].metadata.name') | unique | count == 5
+        until: worker_nodes | json_query('resources[*].metadata.name') | unique | count >= 5
         retries: 30
         delay: 15
       - debug: 
