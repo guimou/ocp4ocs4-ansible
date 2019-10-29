@@ -17,7 +17,7 @@
         k8s:
           api: v1
           state: present
-          definition: "{{ ocs_cluster_yml.content | regex_replace('name: example-storagecluster','ocs-storagecluster') }}"
+          definition: "{{ ocs_cluster_yml.content | regex_replace('name: example-storagecluster','name: ocs-storagecluster') }}"
 
     - name: validate ocs cluster
       block:
