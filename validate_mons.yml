@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  gather_facts: no
+
+  tasks:
+    
+    - name: validate ocs cluster
+      block:
+      - name: Validating MON Pods are running
+        k8s_facts:
+          api_version: v1
+          kind: Pod
+          namespace: openshift-storage
+          label_selectors:
+            - app = rook-ceph-mon
+        register: mons
+        until: (mons | json_query('resources[*].status.conditions[?type==`Ready`][].status')) == ["True","True","True"]
+        retries: 30
+        delay: 15
+      - debug: 
+          msg: 
+          - "All MON pods are running" 

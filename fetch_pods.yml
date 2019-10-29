@@ -1,0 +1,20 @@
+---
+- hosts: localhost
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  gather_facts: no
+
+  tasks:
+    - python_requirements_facts:
+        dependencies:
+          - openshift
+          - requests
+
+    - name: Get a list of all pods
+      k8s_facts:
+        api_version: v1
+        kind: Pod
+      register: Pods_list
+
+    - debug:
+        msg: "{{ Pods_list | json_query('resources[*].metadata.name') }}"
